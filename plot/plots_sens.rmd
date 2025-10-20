@@ -1,5 +1,5 @@
 ---
-title: "MFCL outputs"
+title: "BET sensitivity"
 author: "kyuhan Kim"
 date: "`r Sys.Date()`"
 output:
@@ -23,7 +23,7 @@ knitr::opts_chunk$set(dev = "png",
                       cache = F,
                       warning = F,
                       message = F, 
-                      fig.path='../report/Figures/'
+                      fig.path='../report/Figures/sens/'
                       )
 
 library(ggplot2)
@@ -35,58 +35,31 @@ library(patchwork)
 library(reshape2)
 library(kableExtra)
 library(viridis)
+library(purrr)
+library(stringr)
 
 theme_set(theme_cowplot())
-
 
 #########################
 ## load data and tools ##
 #########################
 
 source("../tools/plot_utils.R")
+# Define the directory where files are saved
 
-results <- list.dirs(file.path(getwd(), "..", "model"), full.names = TRUE, recursive = FALSE) %>%
-  purrr::map(function(folder) {
-    outputs_path <- normalizePath(folder, winslash = "/", mustWork = FALSE)
-    cat("Processing folder:", outputs_path, "\n")
-    
-    # Read ParOut and RepOut for the current folder
-    ParOut <- read.MFCLPar(finalPar(outputs_path))
-    RepOut <- read.MFCLRep(finalRep(outputs_path))
-    
-    output_files <- list.files(outputs_path, pattern = "^test_plot_output_\\d+$", full.names = TRUE)
-    
-    # Read each output file
-    LikOut_list <- purrr::map(output_files, read.MFCLLikelihood)
-    LikRawOut_list <- purrr::map(output_files, readLines)
-    
-        
-    # Extract number only (e.g., '50' from 'test_plot_output_50')
-    scales<-output_files %>% basename() %>% stringr::str_extract("\\d+$")
-    
-    names(LikRawOut_list) <- scales
-    names(LikOut_list) <- scales
-    
-    # Return a list containing ParOut and RepOut
-    list(ParOut = ParOut, 
-         RepOut = RepOut, 
-         LikOut=LikOut_list, 
-         LikRawOut=LikRawOut_list,
-         scales=scales)
-  })
+# Combine all saved .rds files into one list
+rds_files <- list.files("../results_rds/sens", pattern = "*\\.rds$", full.names = TRUE)
+results <- map(rds_files, readRDS)
+names(results) <- basename(rds_files) %>% str_remove("\\.rds$")
 
-
-# Convert results into a named list, using folder names as keys
-names(results) <- basename(list.dirs(file.path(getwd(), "..", "model"), full.names = TRUE, recursive = FALSE))
-
-# Access individual ParOut and RepOut
-ParOut_list <- purrr::map(results, "ParOut")
-RepOut_list <- purrr::map(results, "RepOut")
-
-# Access individual LikOut objects
-ProfLikOut_list <- purrr::map(results, "LikOut")
-ProfLikOutRaw_list <- purrr::map(results, "LikRawOut")
-
+# 4. Extract ParOut, RepOut, LikOut, LikRawOut for all models
+ParOut_list        <- map(results, "ParOut")
+RepOut_list        <- map(results, "RepOut")
+ProfLikOut_list    <- map(results, "LikOut")
+ProfLikOutRaw_list <- map(results, "LikRawOut")
+model_names <- names(ParOut_list)
+dir <-map(results, "parent_dir")
+info <-map(results, "info")
 
 minYear=1952
 maxYear=2021
@@ -94,75 +67,95 @@ maxYear=2021
 # opacity and line width
 alpha = 0.5
 linewidth = 1
-# 
-# scenario_colors <- c(
-#   "base" = "#1b9e77",
-#   "m1" = "#d95f02",
-#   "m2" = "#e6ab02"
-# )
-# 
-# # Fisheries mapping (option for renaming fisheries)
-# fisheries_mapping <- c(
-#   "32" = "PLR1",
-#   "33" = "PLR2",
-#   "34" = "PLR3",
-#   "35" = "PLR4",
-#   "37" = "PLR7",
-#   "38" = "PLR8"
-# )
-# 
-# # Filtered fisheries
-# fisheries <- names(fisheries_mapping)
-
-model_names <- names(ParOut_list)
 
 ```
 
 
 ## Summary of each model configuration
 ```{r, echo=FALSE, message=F, fig.dim=c(10,10)}
+
+
+# Build a data frame from info
+info_df <- lapply(names(info), function(model_name) {
+  model_info <- info[[model_name]]
+  
+  data.frame(
+    Model        = model_name,
+    Reps         = paste(model_info$Reps, collapse = ", "),
+    scalers      = paste(model_info$scalers, collapse = ", "),
+    frq_file     = model_info$frq_file,
+    program_path = model_info$program_path,
+    mfcl_commands= model_info$mfcl_commands,
+    base_dir     = model_info$base_dir,
+    run_prof     = model_info$run_prof,
+    dir          = dir[[model_name]],  # add directory info
+    stringsAsFactors = FALSE
+  )
+})
+
+# Combine all models into one table
+summary_df <- bind_rows(info_df)
+
+# Display nicely
+kable(summary_df, caption = "MFCL Model Info Summary") %>%
+  kable_styling(full_width = FALSE)
+
+
+
+
 # Extract parameters (max_grad, obj_fun, n_pars, dimensions) from ParOut_list
 ExtractParams <- lapply(seq_along(ParOut_list), function(i) {
   model_name <- names(ParOut_list)[i]  # Get the scenario name
   
   mgc_value <- tryCatch(
     ParOut_list[[i]]@max_grad,
-    error = function(e) NA  # If an error occurs, return NA
+    error = function(e) NA
   )
   
   obj_fun_value <- tryCatch(
     ParOut_list[[i]]@obj_fun,
-    error = function(e) NA  # If an error occurs, return NA
+    error = function(e) NA
   )
   
   n_pars_value <- tryCatch(
     ParOut_list[[i]]@n_pars,
-    error = function(e) NA  # If an error occurs, return NA
+    error = function(e) NA
   )
   
   dimensions_value <- tryCatch(
     as.list(ParOut_list[[i]]@dimensions),
-    error = function(e) list(agecls = NA, years = NA, seasons = NA, regions = NA, fisheries = NA, taggrps = NA)  # Default NA if error
+    error = function(e) list(agecls = NA, years = NA, seasons = NA, regions = NA, fisheries = NA, taggrps = NA)
   )
   
-  data.frame(Model = model_name, mgc = mgc_value, obj_fun = obj_fun_value, n_pars = n_pars_value, 
-             agecls = dimensions_value$agecls, years = dimensions_value$years, 
-             seasons = dimensions_value$seasons, regions = dimensions_value$regions, 
-             fisheries = dimensions_value$fisheries, taggrps = dimensions_value$taggrps)
+  # Get 'dir' from the separate 'dir' list (model_name must match)
+  dir_value <- dir[[model_name]]  # Assuming 'dir' list exists as shown above
+  
+  data.frame(
+    Model     = model_name,
+    mgc       = mgc_value,
+    obj_fun   = obj_fun_value,
+    n_pars    = n_pars_value,
+    agecls    = dimensions_value$agecls,
+    years     = dimensions_value$years,
+    seasons   = dimensions_value$seasons,
+    regions   = dimensions_value$regions,
+    fisheries = dimensions_value$fisheries,
+    taggrps   = dimensions_value$taggrps
+  )
 })
 
 # Combine results into a single data frame
 params_df <- bind_rows(ExtractParams)
 
-# Clean scenario names, round numeric values, and apply scenario order
+# Clean numeric columns
 params_df <- params_df %>%
   mutate(
-    mgc      = ifelse(!is.na(as.numeric(mgc)), round(as.numeric(mgc), 6), NA),
-    obj_fun  = ifelse(!is.na(as.numeric(obj_fun)), round(as.numeric(obj_fun), 2), NA),
-    n_pars   = ifelse(!is.na(as.numeric(n_pars)), as.numeric(n_pars), NA)  # Ensure n_pars is numeric
+    mgc     = ifelse(!is.na(as.numeric(mgc)), round(as.numeric(mgc), 6), NA),
+    obj_fun = ifelse(!is.na(as.numeric(obj_fun)), round(as.numeric(obj_fun), 2), NA),
+    n_pars  = ifelse(!is.na(as.numeric(n_pars)), as.numeric(n_pars), NA)
   ) 
 
-# Display parameter values table with scenario-specific dimensions
+# Display parameter table
 kable(params_df, caption = "Basic model info") %>%
   kable_styling(full_width = FALSE)
 

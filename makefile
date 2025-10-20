@@ -5,8 +5,8 @@ WORKDIR=/workspace
 collect: 
 	Rscript collect_results.R
 	
-plot:
-	Rscript -e "rmarkdown::render('plot/plots.rmd')"
+plot_sens:
+	Rscript -e "rmarkdown::render('plot/plots_sens.rmd')"
 
 prepaw:
 	quarto render presentation/prepaw/presentation.qmd
@@ -14,14 +14,19 @@ prepaw:
 report:
 	quarto render report/bet-2026.qmd
 	
+clean:
+	rm -rf model
+	rm -rf results_rds
+	
 docker-collect:
 	docker run --rm -v "$(CURDIR):$(WORKDIR)" -w $(WORKDIR) $(DOCKER_IMAGE) Rscript collect_results.R
 	
-docker-plot:
-	docker run --rm -v "$(CURDIR):$(WORKDIR)" -w $(WORKDIR) $(DOCKER_IMAGE) Rscript -e "rmarkdown::render('plot/plots.rmd')"
+docker-plot_sens:
+	docker run --rm -v "$(CURDIR):$(WORKDIR)" -w $(WORKDIR) $(DOCKER_IMAGE) Rscript -e "rmarkdown::render('plot/plots_sens.rmd')"
 
 docker-report:
 	docker run --rm -v "$(CURDIR):$(WORKDIR)" -w $(WORKDIR) $(DOCKER_IMAGE) quarto render report/bet-2026.qmd
 
-.PHONY: plot docker-plot prepaw report docker-report collect docker-collect
+.PHONY: plot_sens docker-plot_sens prepaw report docker-report collect docker-collect clean
+
 

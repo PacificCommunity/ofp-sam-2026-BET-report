@@ -5,4 +5,4 @@ github_username <- "kyuhank"                                  # GitHub username 
 github_org <- "PacificCommunity"                              # GitHub organisation name (e.g., "PacificCommunity")
 github_repo <- "ofp-sam-2026-bet"                             # GitHub repository name (e.g., "ofp-sam-docker4mfcl-example")                                           # CPU request for the Condor job ")(e.g., 4)
 branch <- "main"                                              # Branch of git repository to use 
-output_dir <- "18_oct_2025_5000iter"
+output_dir <- "sens/20_oct_2025_quick2"
