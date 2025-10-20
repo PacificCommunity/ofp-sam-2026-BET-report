@@ -30,11 +30,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Exit immediately if RUN_PIPELINE=false
+      # Immediate exit if automatic execution is disabled
       - name: Exit if RUN_PIPELINE=false
         run: |
           if [ "${RUN_PIPELINE}" != "true" ]; then
-            echo "RUN_PIPELINE=false, skipping all steps including Docker, pipeline, Pages, and Release."
+            echo "RUN_PIPELINE=false, skipping Docker, pipeline, Pages, and Release."
             exit 0
           fi
 
@@ -65,14 +65,14 @@ jobs:
           cp plot/plots_sens.html public/ || true
           cp plot/plots_grid.html public/ || true
 
-      # Deploy to GitHub Pages
+      # Deploy outputs to GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
 
-      # Create version tag
+      # Create a unique version tag
       - name: Create version tag
         id: tag
         run: |
