@@ -1,70 +1,116 @@
 name: BET-2026 Report Pipeline
 
 on:
+  workflow_dispatch:
+    inputs:
+      run_mode:
+        description: "Select pipeline mode"
+        required: true
+        default: "full"
+        type: choice
+        options:
+          - full
+          - plots_only
+          - report_only
+      version_note:
+        description: "Optional note for this release"
+        required: false
+        default: ""
   push:
     branches: [main]
-  workflow_dispatch:
 
 jobs:
   build-and-release:
     runs-on: ubuntu-22.04
+    env:
+      RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      # Pull Docker image for consistent environment
+      - name: Pull BET-2026 Docker image
+        run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
-    - name: Cache Docker image
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.docker_cache
-        key: docker-image-bet-2026
-        restore-keys: |
-          docker-image-bet-2026
+      # Run the BET-2026 pipeline
+      - name: Run BET-2026 pipeline
+        run: |
+          # Automatic execution control
+          if [ "${RUN_PIPELINE}" != "true" ] && [ "${{ github.event_name }}" == "push" ]; then
+            echo "Automatic execution is disabled. Exiting."
+            exit 0
+          fi
 
-    - name: Pull BET-2026 Docker image
-      run: |
-        docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
+          # Execute pipeline according to selected mode
+          if [ "${{ github.event.inputs.run_mode }}" == "plots_only" ]; then
+            make docker-plot_sens
+            make docker-plot_grid
+          elif [ "${{ github.event.inputs.run_mode }}" == "report_only" ]; then
+            make docker-report
+          else
+            make docker-plot_sens
+            make docker-plot_grid
+            make docker-report
+          fi
 
-    - name: Run BET-2026 pipeline
-      run: |
-        make docker-plot_sens
-        make docker-plot_grid
-        make docker-report
+      # Prepare release directory
+      - name: Prepare release directory
+        run: |
+          mkdir -p public
+          cp report/bet-2026.pdf public/ || true
+          cp plot/plots_sens.html public/ || true
+          cp plot/plots_grid.html public/ || true
 
-    # Determine next available version tag
-    - name: Determine version tag
-      id: version
-      run: |
-        date_tag="v$(date +'%Y.%m.%d')"
-        count=$(gh release list --limit 100 --json tagName -q ".[] | select(.tagName | startswith(\"$date_tag\"))" | wc -l)
-        if [ "$count" -eq 0 ]; then
-          tag="$date_tag-1"
-        else
-          next=$((count + 1))
-          tag="$date_tag-$next"
-        fi
-        echo "tag=$tag" >> $GITHUB_OUTPUT
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Deploy outputs to GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ steps.version.outputs.tag }}
-        name: BET-2026 Report (${{ steps.version.outputs.tag }})
-        body: |
-          Automated BET-2026 model report and plots.
-          Generated automatically on ${{ steps.version.outputs.tag }}.
-        files: |
-          report/bet-2026.pdf
-          plot/plots_sens.html
-          plot/plots_grid.html
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Create a unique version tag
+      - name: Create version tag
+        id: tag
+        run: |
+          DATE=$(date +'%Y%m%d')
+          BASE_TAG="v${DATE}"
 
+          # Fetch remote tags to avoid conflicts
+          git fetch --tags
 
+          # Count all local + remote tags starting with BASE_TAG
+          EXISTING_COUNT=$(git tag -l "${BASE_TAG}*" | wc -l)
+
+          if [ "$EXISTING_COUNT" -eq 0 ]; then
+            TAG="$BASE_TAG"
+          else
+            TAG="${BASE_TAG}-$((EXISTING_COUNT+1))"
+          fi
+
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      # Create GitHub Release and attach PDF + HTML outputs
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: BET-2026 Report ${{ steps.tag.outputs.tag }}
+          body: |
+            ## BET-2026 Automated Report
+            **Mode:** ${{ github.event.inputs.run_mode }}
+            ${{ github.event.inputs.version_note }}
+            
+            **View online:**  
+            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
+            - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_grid.html)  
+            - [PDF Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/bet-2026.pdf)
+          files: |
+            report/bet-2026.pdf
+            plot/plots_sens.html
+            plot/plots_grid.html
 
       
