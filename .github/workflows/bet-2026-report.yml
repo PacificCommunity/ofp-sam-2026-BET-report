@@ -26,26 +26,25 @@ jobs:
       RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
-      # Always checkout the repository first
+      # Always checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Skip the workflow entirely if RUN_PIPELINE=false on push events
-      - name: Skip if RUN_PIPELINE=false
-        if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
+      # Early exit on push if RUN_PIPELINE=false
+      - name: Check RUN_PIPELINE
         run: |
-          echo "RUN_PIPELINE is false. Skipping all steps."
-          exit 0
+          if [ "${{ github.event_name }}" = "push" ] && [ "${RUN_PIPELINE}" != "true" ]; then
+            echo "RUN_PIPELINE=false for push event, exiting."
+            exit 0
+          fi
 
-      # Run the pipeline and pull Docker image only if allowed
+      # Pull Docker image (only if allowed)
+      - name: Pull BET-2026 Docker image
+        run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
+
+      # Run pipeline according to mode
       - name: Run BET-2026 pipeline
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
-          echo "RUN_PIPELINE is true. Executing pipeline..."
-          # Pull Docker image for consistent environment
-          docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
-
-          # Select the pipeline mode based on user input
           MODE="${{ github.event.inputs.run_mode }}"
           if [ "$MODE" = "plots_only" ]; then
             make docker-plot_sens
@@ -58,48 +57,57 @@ jobs:
             make docker-report
           fi
 
-      # Prepare files for release or GitHub Pages
+      # Prepare release directory
       - name: Prepare release directory
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           mkdir -p public
           cp report/bet-2026.pdf public/ || true
           cp plot/plots_sens.html public/ || true
           cp plot/plots_grid.html public/ || true
 
-      # Deploy outputs to GitHub Pages
+      # Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
-          # Remove all previous files and recreate the orphan branch
-          force_orphan: true
-          keep_files: false
-          # Specify the branch for GitHub Pages
-          publish_branch: gh-pages
 
-      # Create a GitHub Release
+      # Create version tag
+      - name: Create version tag
+        id: tag
+        run: |
+          DATE=$(date +'%Y%m%d')
+          BASE_TAG="v${DATE}"
+          git fetch --tags
+          COUNT=$(git tag -l "${BASE_TAG}-*" | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            TAG="${BASE_TAG}-$((COUNT+1))"
+          else
+            TAG="$BASE_TAG"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      # Create GitHub Release
       - name: Create GitHub Release
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
-          # Use run number as a unique tag to prevent conflicts
-          tag_name: ${{ github.run_number }}
-          name: BET-2026 Report #${{ github.run_number }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: BET-2026 Report ${{ steps.tag.outputs.tag }}
           body: |
             ## BET-2026 Automated Report
             **Mode:** ${{ github.event.inputs.run_mode }}
             ${{ github.event.inputs.version_note }}
             
             **View online:**  
-            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/plots_sens.html)  
-            - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/plots_grid.html)  
-            - [PDF Report](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/bet-2026.pdf)
+            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
+            - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_grid.html)  
+            - [PDF Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/bet-2026.pdf)
           files: |
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
+
 
 
