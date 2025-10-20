@@ -26,24 +26,25 @@ jobs:
       RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
-      # Checkout repository (always required)
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Immediate exit if automatic execution is disabled
-      - name: Exit if RUN_PIPELINE=false
+      # Skip push event if automatic execution is off
+      - name: Skip push event if RUN_PIPELINE=false
+        if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
         run: |
-          if [ "${RUN_PIPELINE}" != "true" ]; then
-            echo "RUN_PIPELINE=false, skipping Docker, pipeline, Pages, and Release."
-            exit 0
-          fi
+          echo "Automatic execution is disabled (RUN_PIPELINE=false). Exiting."
+          exit 0
 
-      # Pull Docker image
+      # Pull Docker image (no cache)
       - name: Pull BET-2026 Docker image
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
-      # Run the BET-2026 pipeline
+      # Run BET-2026 pipeline
       - name: Run BET-2026 pipeline
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           MODE="${{ github.event.inputs.run_mode }}"
           if [ "$MODE" = "plots_only" ]; then
@@ -59,6 +60,7 @@ jobs:
 
       # Prepare release directory
       - name: Prepare release directory
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           mkdir -p public
           cp report/bet-2026.pdf public/ || true
@@ -67,6 +69,7 @@ jobs:
 
       # Deploy outputs to GitHub Pages
       - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -74,6 +77,7 @@ jobs:
 
       # Create a unique version tag
       - name: Create version tag
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         id: tag
         run: |
           DATE=$(date +'%Y%m%d')
@@ -91,6 +95,7 @@ jobs:
 
       # Create GitHub Release
       - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
