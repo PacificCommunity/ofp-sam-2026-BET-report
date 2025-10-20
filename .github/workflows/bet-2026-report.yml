@@ -26,24 +26,25 @@ jobs:
       RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
-      # Always checkout repository
+      # Always checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Early exit on push if RUN_PIPELINE=false
-      - name: Check RUN_PIPELINE
+      # Early exit for push if automatic execution is disabled
+      - name: Skip push if RUN_PIPELINE=false
+        if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ] && [ "${RUN_PIPELINE}" != "true" ]; then
-            echo "RUN_PIPELINE=false for push event, exiting."
-            exit 0
-          fi
+          echo "Automatic execution is disabled (RUN_PIPELINE=false). Exiting."
+          exit 0
 
-      # Pull Docker image (only if allowed)
+      # Pull Docker image only if workflow_dispatch OR RUN_PIPELINE=true
       - name: Pull BET-2026 Docker image
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
       # Run pipeline according to mode
       - name: Run BET-2026 pipeline
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           MODE="${{ github.event.inputs.run_mode }}"
           if [ "$MODE" = "plots_only" ]; then
@@ -59,6 +60,7 @@ jobs:
 
       # Prepare release directory
       - name: Prepare release directory
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           mkdir -p public
           cp report/bet-2026.pdf public/ || true
@@ -67,30 +69,36 @@ jobs:
 
       # Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
 
-      # Create version tag
+      # Create a unique version tag safely
       - name: Create version tag
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         id: tag
         run: |
           DATE=$(date +'%Y%m%d')
           BASE_TAG="v${DATE}"
           git fetch --tags
-          COUNT=$(git tag -l "${BASE_TAG}-*" | wc -l)
-          if [ "$COUNT" -gt 0 ]; then
-            TAG="${BASE_TAG}-$((COUNT+1))"
-          else
-            TAG="$BASE_TAG"
-          fi
+
+          COUNT=0
+          TAG="$BASE_TAG"
+          # Loop until a unique tag not present on remote
+          while git ls-remote --tags origin | grep -q "refs/tags/$TAG"; do
+            COUNT=$((COUNT + 1))
+            TAG="${BASE_TAG}-$COUNT"
+          done
+
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           git tag "$TAG"
           git push origin "$TAG"
 
-      # Create GitHub Release
+      # Create GitHub Release with PDF and HTML files
       - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
@@ -99,7 +107,7 @@ jobs:
             ## BET-2026 Automated Report
             **Mode:** ${{ github.event.inputs.run_mode }}
             ${{ github.event.inputs.version_note }}
-            
+
             **View online:**  
             - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
             - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_grid.html)  
