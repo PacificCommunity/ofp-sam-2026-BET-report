@@ -1,0 +1,56 @@
+name: BET-2026 Report Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-report:
+    runs-on: ubuntu-22.04
+
+    steps:
+    # 1. Checkout repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # 2. Set up Docker Buildx (필수 아님, 캐싱에 필요)
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v2
+
+    # 3. Cache Docker layers to avoid re-pulling
+    - name: Cache Docker image
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.docker-cache
+        key: docker-cache-${{ runner.os }}-v1
+        restore-keys: |
+          docker-cache-${{ runner.os }}-
+
+    # 4. Pull BET-2026 Docker image
+    - name: Pull BET-2026 Docker image
+      run: |
+        docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
+
+    # 5. Run BET-2026 pipeline
+    - name: Run BET-2026 plots and report
+      run: |
+        make docker-plot_sens
+        make docker-plot_grid
+        make docker-report
+
+    # 6. Upload PDF report as artifact
+    - name: Upload PDF report
+      uses: actions/upload-artifact@v3
+      with:
+        name: BET-2026-report
+        path: report/bet-2026.pdf
+
+    # 7. Upload HTML plots as artifact
+    - name: Upload HTML plots
+      uses: actions/upload-artifact@v3
+      with:
+        name: BET-2026-html-plots
+        path: |
+          plot/plots_sens.html
+          plot/plots_grid.html
