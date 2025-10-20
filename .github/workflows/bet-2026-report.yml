@@ -26,22 +26,23 @@ jobs:
       RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Skip everything if RUN_PIPELINE=false for push events
-      - name: Exit if automatic execution is off
+      # Skip push event if automatic execution is off
+      - name: Skip push event if RUN_PIPELINE=false
         if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
         run: |
-          echo "Automatic execution is disabled. Exiting."
+          echo "Automatic execution is disabled (RUN_PIPELINE=false). Exiting."
           exit 0
 
-      # Pull Docker image (only if RUN_PIPELINE=true or manual dispatch)
-      - name: Pull Docker image
+      # Pull Docker image (no cache)
+      - name: Pull BET-2026 Docker image
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
-      # Run the BET-2026 pipeline
+      # Run BET-2026 pipeline
       - name: Run BET-2026 pipeline
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
