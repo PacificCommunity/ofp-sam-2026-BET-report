@@ -26,25 +26,23 @@ jobs:
       RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
-      # Checkout repository
+      # Checkout repository (always required)
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Skip push event if automatic execution is off
-      - name: Skip push event if RUN_PIPELINE=false
-        if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
+      # Early exit if automatic execution is off
+      - name: Skip if RUN_PIPELINE=false
+        if: ${{ env.RUN_PIPELINE != 'true' }}
         run: |
-          echo "Automatic execution is disabled (RUN_PIPELINE=false). Exiting."
+          echo "RUN_PIPELINE=false, skipping all steps."
           exit 0
 
-      # Pull Docker image (no cache)
+      # Pull Docker image
       - name: Pull BET-2026 Docker image
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
-      # Run BET-2026 pipeline
+      # Run the BET-2026 pipeline
       - name: Run BET-2026 pipeline
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           MODE="${{ github.event.inputs.run_mode }}"
           if [ "$MODE" = "plots_only" ]; then
@@ -60,24 +58,21 @@ jobs:
 
       # Prepare release directory
       - name: Prepare release directory
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           mkdir -p public
           cp report/bet-2026.pdf public/ || true
           cp plot/plots_sens.html public/ || true
           cp plot/plots_grid.html public/ || true
 
-      # Deploy outputs to GitHub Pages
+      # Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
 
-      # Create a unique version tag
+      # Create version tag
       - name: Create version tag
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         id: tag
         run: |
           DATE=$(date +'%Y%m%d')
@@ -95,7 +90,6 @@ jobs:
 
       # Create GitHub Release
       - name: Create GitHub Release
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
@@ -106,11 +100,10 @@ jobs:
             ${{ github.event.inputs.version_note }}
             
             **View online:**  
-            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/plots_sens.html)  
+            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
             - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/plots_grid.html)  
             - [PDF Report](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/bet-2026.pdf)
           files: |
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
-
