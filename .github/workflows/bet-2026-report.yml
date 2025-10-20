@@ -26,26 +26,26 @@ jobs:
       RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
-      # Checkout repository
+      # Always checkout the repository first
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Skip push event if automatic execution is off
-      - name: Skip push event if RUN_PIPELINE=false
+      # Skip the workflow entirely if RUN_PIPELINE=false on push events
+      - name: Skip if RUN_PIPELINE=false
         if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
         run: |
-          echo "Automatic execution is disabled (RUN_PIPELINE=false). Exiting."
+          echo "RUN_PIPELINE is false. Skipping all steps."
           exit 0
 
-      # Pull Docker image (no cache)
-      - name: Pull BET-2026 Docker image
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
-        run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
-
-      # Run BET-2026 pipeline
+      # Run the pipeline and pull Docker image only if allowed
       - name: Run BET-2026 pipeline
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
+          echo "RUN_PIPELINE is true. Executing pipeline..."
+          # Pull Docker image for consistent environment
+          docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
+
+          # Select the pipeline mode based on user input
           MODE="${{ github.event.inputs.run_mode }}"
           if [ "$MODE" = "plots_only" ]; then
             make docker-plot_sens
@@ -58,7 +58,7 @@ jobs:
             make docker-report
           fi
 
-      # Prepare release directory
+      # Prepare files for release or GitHub Pages
       - name: Prepare release directory
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
@@ -74,33 +74,20 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
-          force: true
+          # Remove all previous files and recreate the orphan branch
+          force_orphan: true
+          keep_files: false
+          # Specify the branch for GitHub Pages
+          publish_branch: gh-pages
 
-      # Create a unique version tag
-      - name: Create version tag
-        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
-        id: tag
-        run: |
-          DATE=$(date +'%Y%m%d')
-          BASE_TAG="v${DATE}"
-          git fetch --tags
-          EXISTING_COUNT=$(git tag -l "${BASE_TAG}*" | wc -l)
-          if [ "$EXISTING_COUNT" -eq 0 ]; then
-            TAG="$BASE_TAG"
-          else
-            TAG="${BASE_TAG}-$((EXISTING_COUNT+1))"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          git tag "$TAG"
-          git push origin "$TAG"
-
-      # Create GitHub Release
+      # Create a GitHub Release
       - name: Create GitHub Release
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: BET-2026 Report ${{ steps.tag.outputs.tag }}
+          # Use run number as a unique tag to prevent conflicts
+          tag_name: ${{ github.run_number }}
+          name: BET-2026 Report #${{ github.run_number }}
           body: |
             ## BET-2026 Automated Report
             **Mode:** ${{ github.event.inputs.run_mode }}
@@ -114,4 +101,5 @@ jobs:
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
+
 
