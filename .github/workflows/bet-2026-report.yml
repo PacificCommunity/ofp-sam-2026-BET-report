@@ -6,83 +6,77 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-release-and-pages:
+  build-and-release:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      # Checkout the repository contents
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      # Set up Docker build environment
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    - name: Cache Docker image
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.docker_cache
-        key: docker-image-bet-2026
-        restore-keys: |
-          docker-image-bet-2026
+      # Pull the BET-2026 Docker image from GitHub Container Registry
+      - name: Pull BET-2026 Docker image
+        run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
-    - name: Pull BET-2026 Docker image
-      run: |
-        docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
+      # Run the model pipeline to generate plots and reports
+      - name: Run BET-2026 pipeline
+        run: |
+          make docker-plot_sens
+          make docker-plot_grid
+          make docker-report
 
-    - name: Run BET-2026 pipeline
-      run: |
-        make docker-plot_sens
-        make docker-plot_grid
-        make docker-report
+      # Collect all output files (PDF + HTML) into a single folder for publishing
+      - name: Prepare release directory
+        run: |
+          mkdir -p public
+          cp report/bet-2026.pdf public/
+          cp plot/plots_sens.html public/
+          cp plot/plots_grid.html public/
 
-    # Determine next available version tag (auto-increment if same day)
-    - name: Determine version tag
-      id: version
-      run: |
-        date_tag="v$(date +'%Y.%m.%d')"
-        count=$(gh release list --limit 100 --json tagName -q ".[] | select(.tagName | startswith(\"$date_tag\"))" | wc -l)
-        if [ "$count" -eq 0 ]; then
-          tag="$date_tag-1"
-        else
-          next=$((count + 1))
-          tag="$date_tag-$next"
-        fi
-        echo "tag=$tag" >> $GITHUB_OUTPUT
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # === Deploy generated files to GitHub Pages ===
+      # This allows direct viewing in the browser (no download required)
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
 
-    # Prepare versioned output directory for GitHub Pages
-    - name: Prepare versioned output
-      run: |
-        mkdir -p ./gh-pages/output/${{ steps.version.outputs.tag }}
-        cp -r report plot ./gh-pages/output/${{ steps.version.outputs.tag }}/
+      # === Automatically create a version tag (daily or incremental) ===
+      # Example tags: v20251020, v20251020-2, v20251020-3
+      - name: Create version tag
+        id: tag
+        run: |
+          DATE=$(date +'%Y%m%d')
+          TAG="v${DATE}"
+          COUNT=$(git tag --list "${TAG}-*" | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            TAG="${TAG}-$((COUNT+1))"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          git tag "$TAG"
+          git push origin "$TAG"
 
-    # Deploy to GitHub Pages (preserve previous versions)
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./gh-pages
-        keep_files: true
-
-    # Create GitHub Release with auto-inserted links
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ steps.version.outputs.tag }}
-        name: BET-2026 Report (${{ steps.version.outputs.tag }})
-        body: |
-          Automated BET-2026 model report and plots.
-          Generated automatically on ${{ steps.version.outputs.tag }}.
-
-          📄 [View PDF](https://pacificcommunity.github.io/bet-2026/output/${{ steps.version.outputs.tag }}/report/bet-2026.pdf)
-          🌐 [View Sensitivity HTML](https://pacificcommunity.github.io/bet-2026/output/${{ steps.version.outputs.tag }}/plot/plots_sens.html)
-          🌐 [View Grid HTML](https://pacificcommunity.github.io/bet-2026/output/${{ steps.version.outputs.tag }}/plot/plots_grid.html)
-        files: |
-          report/bet-2026.pdf
-          plot/plots_sens.html
-          plot/plots_grid.html
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # === Create a GitHub Release and attach files ===
+      # The release description includes hyperlinks to the GitHub Pages URLs
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: BET-2026 Report ${{ steps.tag.outputs.tag }}
+          body: |
+            ## BET-2026 Automated Report
+            **View online:**  
+            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
+            - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_grid.html)  
+            - [PDF Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/bet-2026.pdf)
+          files: |
+            report/bet-2026.pdf
+            plot/plots_sens.html
+            plot/plots_grid.html
 
 
 
