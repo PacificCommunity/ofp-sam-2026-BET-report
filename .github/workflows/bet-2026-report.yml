@@ -26,24 +26,26 @@ jobs:
       RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
-      # Checkout repository
+      # Checkout repository (always required)
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Early exit for push when RUN_PIPELINE != true
+      - name: Skip push event if RUN_PIPELINE is false
+        if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
+        run: |
+          echo "Automatic execution is disabled (RUN_PIPELINE=false). Exiting."
+          exit 0
+
       # Pull Docker image for consistent environment
       - name: Pull BET-2026 Docker image
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
       # Run the BET-2026 pipeline
       - name: Run BET-2026 pipeline
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
-          # Automatic execution control
-          if [ "${RUN_PIPELINE}" != "true" ] && [ "${{ github.event_name }}" == "push" ]; then
-            echo "Automatic execution is disabled. Exiting."
-            exit 0
-          fi
-
-          # Execute pipeline according to selected mode
           if [ "${{ github.event.inputs.run_mode }}" == "plots_only" ]; then
             make docker-plot_sens
             make docker-plot_grid
@@ -57,6 +59,7 @@ jobs:
 
       # Prepare release directory
       - name: Prepare release directory
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           mkdir -p public
           cp report/bet-2026.pdf public/ || true
@@ -65,6 +68,7 @@ jobs:
 
       # Deploy outputs to GitHub Pages
       - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -72,15 +76,14 @@ jobs:
 
       # Create a unique version tag
       - name: Create version tag
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         id: tag
         run: |
           DATE=$(date +'%Y%m%d')
           BASE_TAG="v${DATE}"
 
-          # Fetch remote tags to avoid conflicts
           git fetch --tags
 
-          # Count all local + remote tags starting with BASE_TAG
           EXISTING_COUNT=$(git tag -l "${BASE_TAG}*" | wc -l)
 
           if [ "$EXISTING_COUNT" -eq 0 ]; then
@@ -93,8 +96,9 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
-      # Create GitHub Release and attach PDF + HTML outputs
+      # Create GitHub Release
       - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
@@ -112,5 +116,3 @@ jobs:
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
-
-      
