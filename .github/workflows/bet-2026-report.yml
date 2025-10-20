@@ -1,52 +1,62 @@
 name: BET-2026 Report Pipeline
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      run_mode:
+        description: "Select pipeline mode"
+        required: true
+        default: "full"
+        type: choice
+        options:
+          - full
+          - plots_only
+          - report_only
+      version_note:
+        description: "Optional note for this release"
+        required: false
+        default: ""
+
+  push:
+    branches: [main]  # (자동 실행용, 나중에 비활성화 가능)
 
 jobs:
   build-and-release:
     runs-on: ubuntu-22.04
 
     steps:
-      # Checkout the repository contents
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Set up Docker build environment
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # Pull the BET-2026 Docker image from GitHub Container Registry
       - name: Pull BET-2026 Docker image
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
-      # Run the model pipeline to generate plots and reports
       - name: Run BET-2026 pipeline
         run: |
-          make docker-plot_sens
-          make docker-plot_grid
-          make docker-report
+          if [ "${{ github.event.inputs.run_mode }}" == "plots_only" ]; then
+            make docker-plot_sens
+            make docker-plot_grid
+          elif [ "${{ github.event.inputs.run_mode }}" == "report_only" ]; then
+            make docker-report
+          else
+            make docker-plot_sens
+            make docker-plot_grid
+            make docker-report
+          fi
 
-      # Collect all output files (PDF + HTML) into a single folder for publishing
       - name: Prepare release directory
         run: |
           mkdir -p public
-          cp report/bet-2026.pdf public/
-          cp plot/plots_sens.html public/
-          cp plot/plots_grid.html public/
+          cp report/bet-2026.pdf public/ || true
+          cp plot/plots_sens.html public/ || true
+          cp plot/plots_grid.html public/ || true
 
-      # === Deploy generated files to GitHub Pages ===
-      # This allows direct viewing in the browser (no download required)
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
 
-      # === Automatically create a version tag (daily or incremental) ===
-      # Example tags: v20251020, v20251020-2, v20251020-3
       - name: Create version tag
         id: tag
         run: |
@@ -60,8 +70,6 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
-      # === Create a GitHub Release and attach files ===
-      # The release description includes hyperlinks to the GitHub Pages URLs
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -69,6 +77,9 @@ jobs:
           name: BET-2026 Report ${{ steps.tag.outputs.tag }}
           body: |
             ## BET-2026 Automated Report
+            **Mode:** ${{ github.event.inputs.run_mode }}
+            ${{ github.event.inputs.version_note }}
+            
             **View online:**  
             - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
             - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_grid.html)  
@@ -77,9 +88,5 @@ jobs:
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
-
-
-
-
 
       
