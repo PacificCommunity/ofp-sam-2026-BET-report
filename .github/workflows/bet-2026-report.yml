@@ -23,8 +23,8 @@ jobs:
   build-and-release:
     runs-on: ubuntu-22.04
     env:
-      # Use repository variable, fallback to 'false'
-      RUN_PIPELINE: ${{ vars.RUN_PIPELINE || 'false' }}
+      # Use repository variable, fallback to 'true'
+      RUN_PIPELINE: ${{ vars.RUN_PIPELINE || 'true' }}
 
     steps:
       - name: Checkout repository
