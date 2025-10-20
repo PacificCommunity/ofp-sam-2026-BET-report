@@ -30,12 +30,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Early exit if automatic execution is off
-      - name: Skip if RUN_PIPELINE=false
-        if: ${{ env.RUN_PIPELINE != 'true' }}
+      # Exit immediately if RUN_PIPELINE=false
+      - name: Exit if RUN_PIPELINE=false
         run: |
-          echo "RUN_PIPELINE=false, skipping all steps."
-          exit 0
+          if [ "${RUN_PIPELINE}" != "true" ]; then
+            echo "RUN_PIPELINE=false, skipping all steps including Docker, pipeline, Pages, and Release."
+            exit 0
+          fi
 
       # Pull Docker image
       - name: Pull BET-2026 Docker image
@@ -100,10 +101,11 @@ jobs:
             ${{ github.event.inputs.version_note }}
             
             **View online:**  
-            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
+            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/plots_sens.html)  
             - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/plots_grid.html)  
             - [PDF Report](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/bet-2026.pdf)
           files: |
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
+
