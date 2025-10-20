@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-release:
+  build-release-and-pages:
     runs-on: ubuntu-22.04
 
     steps:
@@ -34,7 +34,7 @@ jobs:
         make docker-plot_grid
         make docker-report
 
-    # Determine next available version tag
+    # Determine next available version tag (auto-increment if same day)
     - name: Determine version tag
       id: version
       run: |
@@ -50,6 +50,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    # Create GitHub Release
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
@@ -64,6 +65,21 @@ jobs:
           plot/plots_grid.html
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Prepare versioned directory for GitHub Pages
+    - name: Prepare versioned output
+      run: |
+        mkdir -p ./gh-pages/output/${{ steps.version.outputs.tag }}
+        cp -r report plot ./gh-pages/output/${{ steps.version.outputs.tag }}/
+
+    # Deploy to GitHub Pages under versioned folder
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./gh-pages
+        keep_files: true
+
 
 
 
