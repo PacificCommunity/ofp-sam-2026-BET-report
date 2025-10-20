@@ -50,7 +50,21 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Create GitHub Release
+    # Prepare versioned output directory for GitHub Pages
+    - name: Prepare versioned output
+      run: |
+        mkdir -p ./gh-pages/output/${{ steps.version.outputs.tag }}
+        cp -r report plot ./gh-pages/output/${{ steps.version.outputs.tag }}/
+
+    # Deploy to GitHub Pages (preserve previous versions)
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./gh-pages
+        keep_files: true
+
+    # Create GitHub Release with auto-inserted links
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
@@ -59,6 +73,10 @@ jobs:
         body: |
           Automated BET-2026 model report and plots.
           Generated automatically on ${{ steps.version.outputs.tag }}.
+
+          📄 [View PDF](https://pacificcommunity.github.io/bet-2026/output/${{ steps.version.outputs.tag }}/report/bet-2026.pdf)
+          🌐 [View Sensitivity HTML](https://pacificcommunity.github.io/bet-2026/output/${{ steps.version.outputs.tag }}/plot/plots_sens.html)
+          🌐 [View Grid HTML](https://pacificcommunity.github.io/bet-2026/output/${{ steps.version.outputs.tag }}/plot/plots_grid.html)
         files: |
           report/bet-2026.pdf
           plot/plots_sens.html
@@ -66,19 +84,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Prepare versioned directory for GitHub Pages
-    - name: Prepare versioned output
-      run: |
-        mkdir -p ./gh-pages/output/${{ steps.version.outputs.tag }}
-        cp -r report plot ./gh-pages/output/${{ steps.version.outputs.tag }}/
-
-    # Deploy to GitHub Pages under versioned folder
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./gh-pages
-        keep_files: true
 
 
 
