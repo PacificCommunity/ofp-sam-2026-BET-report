@@ -30,8 +30,14 @@ get_remote_dirs <- function(remote_user, remote_host, remote_path) {
   return(dirs)
 }
 
+
 # ------------------------------------------------------------
-# 2. Fetch remote model folders
+# 2. Determine top-level folder (e.g., 'sens' or 'grid')
+# ------------------------------------------------------------
+top_dir <- strsplit(output_dir, "/")[[1]][1]
+
+# ------------------------------------------------------------
+# 3. Fetch remote model folders
 # ------------------------------------------------------------
 remote_path    <- paste0(github_repo, "/", output_dir)
 remote_subdirs <- get_remote_dirs(remote_user, remote_host, remote_path)
@@ -44,7 +50,7 @@ for(model_name in remote_subdirs) {
     remote_host      = remote_host,
     folder_name      = remote_dir,
     action           = "fetch",
-    fetch_dir        = "model",
+    fetch_dir        = paste0("model/",top_dir),
     extract_archive  = TRUE,
     direct_extract   = TRUE,
     archive_name     = "output_archive.tar.gz",
@@ -52,16 +58,12 @@ for(model_name in remote_subdirs) {
   )
 }
 
-# ------------------------------------------------------------
-# 3. Determine top-level folder (e.g., 'sens' or 'grid')
-# ------------------------------------------------------------
-top_dir <- strsplit(output_dir, "/")[[1]][1]
 
 # ------------------------------------------------------------
 # 4. Define local directories
 # ------------------------------------------------------------
-model_dir <- file.path(getwd(), "model")                  # Local extracted models
-out_dir   <- file.path(getwd(), "results_rds", top_dir)  # Save RDS per model
+out_dir   <- file.path(getwd(), "results_rds", top_dir)            # Save RDS per model
+model_dir <- file.path(getwd(), "model", top_dir)      # Local model folders
 
 if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 # ------------------------------------------------------------
@@ -159,7 +161,7 @@ cat("\nAll model results have been saved in:", out_dir, "\n")
 #   paste0("R version           : ", R.version.string),                     # R version used for reproducibility
 #   paste0("Platform            : ", R.version$platform)                     # Platform/OS information
 # )
-
-# Write the information to the stamp file
-writeLines(stamp_lines, stamp_file)
-cat("\n✅ Collection complete. Metadata saved in", stamp_file, "\n")
+# 
+# # Write the information to the stamp file
+# writeLines(stamp_lines, stamp_file)
+# cat("\n✅ Collection complete. Metadata saved in", stamp_file, "\n")
