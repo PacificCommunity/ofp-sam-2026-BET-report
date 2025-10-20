@@ -29,17 +29,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Skip push event if automatic execution is off
-      - name: Skip push event if RUN_PIPELINE=false
+      # Skip everything if RUN_PIPELINE=false for push events
+      - name: Exit if automatic execution is off
         if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
         run: |
           echo "Automatic execution is disabled. Exiting."
           exit 0
 
+      # Pull Docker image (only if RUN_PIPELINE=true or manual dispatch)
       - name: Pull Docker image
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
+      # Run the BET-2026 pipeline
       - name: Run BET-2026 pipeline
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           MODE="${{ github.event.inputs.run_mode }}"
           if [ "$MODE" = "plots_only" ]; then
@@ -53,20 +57,26 @@ jobs:
             make docker-report
           fi
 
+      # Prepare release directory
       - name: Prepare release directory
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           mkdir -p public
           cp report/bet-2026.pdf public/ || true
           cp plot/plots_sens.html public/ || true
           cp plot/plots_grid.html public/ || true
 
+      # Deploy outputs to GitHub Pages
       - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
 
+      # Create a unique version tag
       - name: Create version tag
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         id: tag
         run: |
           DATE=$(date +'%Y%m%d')
@@ -82,7 +92,9 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
+      # Create GitHub Release
       - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
@@ -93,10 +105,11 @@ jobs:
             ${{ github.event.inputs.version_note }}
             
             **View online:**  
-            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
+            - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/plots_sens.html)  
             - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/plots_grid.html)  
             - [PDF Report](https://${{ github.repository_owner }}.github.io/${{ github.repository.name }}/bet-2026.pdf)
           files: |
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
+
