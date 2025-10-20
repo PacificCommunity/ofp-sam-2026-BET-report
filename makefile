@@ -5,18 +5,13 @@
 DOCKER_IMAGE=ghcr.io/pacificcommunity/bet-2026:v1.2
 WORKDIR=/workspace
 
-STAMP_FILE=collect_done.txt
-
 # ------------------------------------------------------------
 # 1. Local pipeline
 # ------------------------------------------------------------
 
-# Collect results only if new files appear in model folders
-collect: $(STAMP_FILE)
 
-$(STAMP_FILE): $(wildcard model/*/*)
+collect:
 	Rscript collect_results.R
-	touch $(STAMP_FILE)
 
 # Sensitivity plots (no dependency)
 plot_sens:

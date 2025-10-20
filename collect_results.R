@@ -74,7 +74,6 @@ walk(model_folders, function(folder) {
   outputs_path <- normalizePath(folder, winslash = "/", mustWork = FALSE)
   cat("Processing folder:", outputs_path, "\n")
   
-  # Extract model folder name (e.g., 'base', 'fixK', 'noAge')
   model_name <- basename(folder)
   
   # ---------------------------
@@ -87,13 +86,12 @@ walk(model_folders, function(folder) {
   LikOut_list     <- map(output_files, read.MFCLLikelihood)
   LikRawOut_list  <- map(output_files, readLines)
   
-  # Extract numeric suffix for LikOut naming
   scales <- basename(output_files) %>% str_extract("\\d+$")
   names(LikOut_list)    <- scales
   names(LikRawOut_list) <- scales
   
   # ---------------------------
-  # Read info.rds if it exists
+  # Read info.rds if exists
   # ---------------------------
   info_file <- file.path(outputs_path, "info.rds")
   if (file.exists(info_file)) {
@@ -103,21 +101,32 @@ walk(model_folders, function(folder) {
   }
   
   # ---------------------------
-  # Combine results for this model
+  # Read avg_bio and save as numeric
+  # ---------------------------
+  avg_bio_file <- file.path(outputs_path, "avg_bio")
+  if (file.exists(avg_bio_file)) {
+    avg_bio <- as.numeric(read.table(avg_bio_file)[1, 1])
+  } else {
+    avg_bio <- NA_real_
+  }
+  
+  # ---------------------------
+  # Combine results
   # ---------------------------
   model_result <- list(
-    ParOut      = ParOut,
-    RepOut      = RepOut,
-    LikOut      = LikOut_list,
-    LikRawOut   = LikRawOut_list,
-    scales      = scales,
-    model_name  = model_name,
-    parent_dir  = remote_path,
-    info        = info  # add info.rds content
+    ParOut     = ParOut,
+    RepOut     = RepOut,
+    LikOut     = LikOut_list,
+    LikRawOut  = LikRawOut_list,
+    scales     = scales,
+    model_name = model_name,
+    parent_dir = remote_path,
+    info       = info,
+    avg_bio    = avg_bio
   )
   
   # ---------------------------
-  # Save model result as compressed .rds
+  # Save as compressed RDS
   # ---------------------------
   saveRDS(model_result,
           file = file.path(out_dir, paste0(model_name, ".rds")),
@@ -129,26 +138,27 @@ walk(model_folders, function(folder) {
 cat("\nAll model results have been saved in:", out_dir, "\n")
 
 
+
 # ------------------------------------------------------------
 # Save collection info as a human-readable stamp
 # ------------------------------------------------------------
-
-# Path to human-readable collection stamp
-stamp_file <- file.path(getwd(), "collect_done.txt")
-
-
-# Prepare lines for the stamp file
-stamp_lines <- c(
-  paste0("Collection timestamp: ", Sys.time()),                         # Current date and time of collection
-  paste0("Working directory   : ", getwd()),                             # Current working directory
-  paste0("Model directory     : ", model_dir),                            # Directory containing model folders
-  paste0("Results directory   : ", out_dir),                          # Directory where results are stored
-  "Processed folders:",                                                    # Header for folder list
-  paste0("  - ", basename(model_folders)),                                # Names of each processed model folder
-  paste0("Number of models    : ", length(model_folders)),                # Total number of processed models
-  paste0("R version           : ", R.version.string),                     # R version used for reproducibility
-  paste0("Platform            : ", R.version$platform)                     # Platform/OS information
-)
+# 
+# # Path to human-readable collection stamp
+# stamp_file <- file.path(getwd(), "collect_done.txt")
+# 
+# 
+# # Prepare lines for the stamp file
+# stamp_lines <- c(
+#   paste0("Collection timestamp: ", Sys.time()),                         # Current date and time of collection
+#   paste0("Working directory   : ", getwd()),                             # Current working directory
+#   paste0("Model directory     : ", model_dir),                            # Directory containing model folders
+#   paste0("Results directory   : ", out_dir),                          # Directory where results are stored
+#   "Processed folders:",                                                    # Header for folder list
+#   paste0("  - ", basename(model_folders)),                                # Names of each processed model folder
+#   paste0("Number of models    : ", length(model_folders)),                # Total number of processed models
+#   paste0("R version           : ", R.version.string),                     # R version used for reproducibility
+#   paste0("Platform            : ", R.version$platform)                     # Platform/OS information
+# )
 
 # Write the information to the stamp file
 writeLines(stamp_lines, stamp_file)

@@ -60,6 +60,8 @@ ProfLikOutRaw_list <- map(results, "LikRawOut")
 model_names <- names(ParOut_list)
 dir <-map(results, "parent_dir")
 info <-map(results, "info")
+ave_bio <-map(results, "avg_bio")
+
 
 minYear=1952
 maxYear=2021
@@ -298,8 +300,9 @@ Likes_long <- Likes_df %>%
     names_to = "scenario",
     values_to = "value"
   ) %>%
-  mutate(scaler = as.numeric(scaler)*0.01*unlist(sapply(scenarios_name, function(x) read.table(paste0("../model/",x, "/avg_bio"))))
-)
+  mutate(
+    scaler = as.numeric(scaler) * 0.01 * sapply(scenario, function(x) ave_bio[[x]])
+  )
 
 
 Likes_change <- Likes_long %>%
