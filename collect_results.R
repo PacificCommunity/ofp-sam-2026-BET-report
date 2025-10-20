@@ -127,3 +127,29 @@ walk(model_folders, function(folder) {
 })
 
 cat("\nAll model results have been saved in:", out_dir, "\n")
+
+
+# ------------------------------------------------------------
+# Save collection info as a human-readable stamp
+# ------------------------------------------------------------
+
+# Path to human-readable collection stamp
+stamp_file <- file.path(getwd(), "collect_done.txt")
+
+
+# Prepare lines for the stamp file
+stamp_lines <- c(
+  paste0("Collection timestamp: ", Sys.time()),                         # Current date and time of collection
+  paste0("Working directory   : ", getwd()),                             # Current working directory
+  paste0("Model directory     : ", model_dir),                            # Directory containing model folders
+  paste0("Results directory   : ", out_dir),                          # Directory where results are stored
+  "Processed folders:",                                                    # Header for folder list
+  paste0("  - ", basename(model_folders)),                                # Names of each processed model folder
+  paste0("Number of models    : ", length(model_folders)),                # Total number of processed models
+  paste0("R version           : ", R.version.string),                     # R version used for reproducibility
+  paste0("Platform            : ", R.version$platform)                     # Platform/OS information
+)
+
+# Write the information to the stamp file
+writeLines(stamp_lines, stamp_file)
+cat("\n✅ Collection complete. Metadata saved in", stamp_file, "\n")

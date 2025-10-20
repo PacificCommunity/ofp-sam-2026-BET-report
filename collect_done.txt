@@ -1,0 +1,10 @@
+Collection timestamp: 2025-10-20 12:53:56.792418
+Working directory   : /home/kyuhank/Desktop/SPC/ofp-sam-2026-BET-report
+Model directory     : /home/kyuhank/Desktop/SPC/ofp-sam-2026-BET-report/model
+Results directory   : /home/kyuhank/Desktop/SPC/ofp-sam-2026-BET-report/results_rds/sens
+Processed folders:
+  - base
+  - noAge
+Number of models    : 2
+R version           : R version 4.5.1 (2025-06-13)
+Platform            : x86_64-pc-linux-gnu
