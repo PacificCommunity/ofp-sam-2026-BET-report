@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-report:
+  build-and-release:
     runs-on: ubuntu-22.04
 
     steps:
@@ -34,19 +34,37 @@ jobs:
         make docker-plot_grid
         make docker-report
 
-    - name: Upload PDF report as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: BET-2026-report
-        path: report/bet-2026.pdf
+    # Determine next available version tag
+    - name: Determine version tag
+      id: version
+      run: |
+        date_tag="v$(date +'%Y.%m.%d')"
+        count=$(gh release list --limit 100 --json tagName -q ".[] | select(.tagName | startswith(\"$date_tag\"))" | wc -l)
+        if [ "$count" -eq 0 ]; then
+          tag="$date_tag-1"
+        else
+          next=$((count + 1))
+          tag="$date_tag-$next"
+        fi
+        echo "tag=$tag" >> $GITHUB_OUTPUT
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload HTML plots as artifact
-      uses: actions/upload-artifact@v4
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
       with:
-        name: BET-2026-html-plots
-        path: |
+        tag_name: ${{ steps.version.outputs.tag }}
+        name: BET-2026 Report (${{ steps.version.outputs.tag }})
+        body: |
+          Automated BET-2026 model report and plots.
+          Generated automatically on ${{ steps.version.outputs.tag }}.
+        files: |
+          report/bet-2026.pdf
           plot/plots_sens.html
           plot/plots_grid.html
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
       
