@@ -30,24 +30,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Pull Docker image for consistent environment
+      # Skip push if automatic execution is off
+      - name: Skip push if RUN_PIPELINE=false
+        if: ${{ github.event_name == 'push' && env.RUN_PIPELINE != 'true' }}
+        run: |
+          echo "Automatic execution is disabled. Exiting."
+          exit 0
+
+      # Pull Docker image
       - name: Pull BET-2026 Docker image
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
-      # Run the BET-2026 pipeline
+      # Run pipeline according to mode
       - name: Run BET-2026 pipeline
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
-          # Automatic execution control
-          if [ "${RUN_PIPELINE}" != "true" ] && [ "${{ github.event_name }}" == "push" ]; then
-            echo "Automatic execution is disabled. Exiting."
-            exit 0
-          fi
-
-          # Execute pipeline according to selected mode
-          if [ "${{ github.event.inputs.run_mode }}" == "plots_only" ]; then
+          MODE="${{ github.event.inputs.run_mode }}"
+          if [ "$MODE" = "plots_only" ]; then
             make docker-plot_sens
             make docker-plot_grid
-          elif [ "${{ github.event.inputs.run_mode }}" == "report_only" ]; then
+          elif [ "$MODE" = "report_only" ]; then
             make docker-report
           else
             make docker-plot_sens
@@ -57,44 +60,49 @@ jobs:
 
       # Prepare release directory
       - name: Prepare release directory
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: |
           mkdir -p public
           cp report/bet-2026.pdf public/ || true
           cp plot/plots_sens.html public/ || true
           cp plot/plots_grid.html public/ || true
 
-      # Deploy outputs to GitHub Pages
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
+      # Deploy to GitHub Pages via gh CLI (avoiding Deployment records)
+      - name: Deploy to GitHub Pages via gh CLI
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B gh-pages
+          git rm -rf .
+          cp -r public/* .
+          git add .
+          git commit -m "Update GitHub Pages content"
+          git push -f origin gh-pages
 
-      # Create a unique version tag
+      # Create a unique version tag safely
       - name: Create version tag
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         id: tag
         run: |
           DATE=$(date +'%Y%m%d')
           BASE_TAG="v${DATE}"
-
-          # Fetch remote tags to avoid conflicts
           git fetch --tags
-
-          # Count all local + remote tags starting with BASE_TAG
-          EXISTING_COUNT=$(git tag -l "${BASE_TAG}*" | wc -l)
-
-          if [ "$EXISTING_COUNT" -eq 0 ]; then
-            TAG="$BASE_TAG"
-          else
-            TAG="${BASE_TAG}-$((EXISTING_COUNT+1))"
-          fi
-
+          COUNT=0
+          TAG="$BASE_TAG"
+          while git ls-remote --tags origin | grep -q "refs/tags/$TAG"; do
+            COUNT=$((COUNT + 1))
+            TAG="${BASE_TAG}-$COUNT"
+          done
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           git tag "$TAG"
           git push origin "$TAG"
 
-      # Create GitHub Release and attach PDF + HTML outputs
+      # Create GitHub Release
       - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
@@ -103,7 +111,7 @@ jobs:
             ## BET-2026 Automated Report
             **Mode:** ${{ github.event.inputs.run_mode }}
             ${{ github.event.inputs.version_note }}
-            
+
             **View online:**  
             - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
             - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_grid.html)  
@@ -113,4 +121,56 @@ jobs:
             plot/plots_sens.html
             plot/plots_grid.html
 
-      
+      # Cleanup old deployments (keep last 30 min)
+      - name: Cleanup old deployments (keep last 30 min)
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO=$GITHUB_REPOSITORY
+          NOW=$(date -u +%s)
+          sudo apt-get update && sudo apt-get install -y jq
+          DEPLOYMENTS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            https://api.github.com/repos/$REPO/deployments \
+            | jq -c '.[] | {id: .id, created_at: .created_at}')
+          echo "$DEPLOYMENTS" | while read deployment; do
+            ID=$(echo "$deployment" | jq -r '.id')
+            CREATED=$(echo "$deployment" | jq -r '.created_at')
+            CREATED_TS=$(date -d "$CREATED" +%s)
+            DIFF=$((NOW - CREATED_TS))
+            if [ "$DIFF" -gt 1800 ]; then
+              echo "Deleting deployment $ID created at $CREATED (older than 30 min)"
+              curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+                https://api.github.com/repos/$REPO/deployments/$ID
+            else
+              echo "Keeping deployment $ID created at $CREATED (within 30 min)"
+            fi
+          done
+
+      # Cleanup old releases (keep last 30 days)
+      - name: Cleanup old releases (keep last 30 days)
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO=$GITHUB_REPOSITORY
+          NOW=$(date -u +%s)
+          sudo apt-get update && sudo apt-get install -y jq
+          RELEASES=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            https://api.github.com/repos/$REPO/releases \
+            | jq -c '.[] | {id: .id, created_at: .created_at}')
+          echo "$RELEASES" | while read release; do
+            ID=$(echo "$release" | jq -r '.id')
+            CREATED=$(echo "$release" | jq -r '.created_at')
+            CREATED_TS=$(date -d "$CREATED" +%s)
+            DIFF=$((NOW - CREATED_TS))
+            if [ "$DIFF" -gt 2592000 ]; then  # 30 days in seconds
+              echo "Deleting release $ID created at $CREATED (older than 30 days)"
+              curl -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+                https://api.github.com/repos/$REPO/releases/$ID
+            else
+              echo "Keeping release $ID created at $CREATED (within 30 days)"
+            fi
+          done
+
+
