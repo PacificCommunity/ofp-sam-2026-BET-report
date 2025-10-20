@@ -16,13 +16,14 @@ on:
         description: "Optional note for this release"
         required: false
         default: ""
-
   push:
-    branches: [main]  # (자동 실행용, 나중에 비활성화 가능)
+    branches: [main]
 
 jobs:
   build-and-release:
     runs-on: ubuntu-22.04
+    env:
+      RUN_PIPELINE: ${{ vars.RUN_PIPELINE }}
 
     steps:
       - name: Checkout repository
@@ -33,6 +34,13 @@ jobs:
 
       - name: Run BET-2026 pipeline
         run: |
+          # RUN_PIPELINE 확인
+          if [ "${RUN_PIPELINE}" != "true" ] && [ "${{ github.event_name }}" == "push" ]; then
+            echo "Automatic execution is disabled. Exiting."
+            exit 0
+          fi
+
+          # pipeline 실행 모드
           if [ "${{ github.event.inputs.run_mode }}" == "plots_only" ]; then
             make docker-plot_sens
             make docker-plot_grid
@@ -88,5 +96,6 @@ jobs:
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
+
 
       
