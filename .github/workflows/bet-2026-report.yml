@@ -69,11 +69,17 @@ jobs:
         id: tag
         run: |
           DATE=$(date +'%Y%m%d')
-          TAG="v${DATE}"
-          COUNT=$(git tag --list "${TAG}-*" | wc -l)
-          if [ "$COUNT" -gt 0 ]; then
-            TAG="${TAG}-$((COUNT+1))"
+          BASE_TAG="v${DATE}"
+
+          # Check all existing tags starting with BASE_TAG
+          EXISTING_TAGS=$(git tag --list "${BASE_TAG}*")
+          if [ -z "$EXISTING_TAGS" ]; then
+            TAG="$BASE_TAG"
+          else
+            COUNT=$(echo "$EXISTING_TAGS" | wc -l)
+            TAG="${BASE_TAG}-$((COUNT+1))"
           fi
+
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           git tag "$TAG"
           git push origin "$TAG"
@@ -96,6 +102,5 @@ jobs:
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
-
 
       
