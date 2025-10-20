@@ -4,7 +4,7 @@ bibliography: ../bet-2026.bib
 
 # Introduction
 
-Standardized catch-per-unit-effort (CPUE) indices provide essential data for fisheries stock assessments by tracking relative abundance trends over time [@maunder_punt_2004_cpue]. 
+Standardized catch-per-unit-effort (CPUE) indices provide essential data for fisheries stock assessments by tracking relative abundance trends over time [@maunder_punt_2004_cpue]. blah blah blah.
 
 ## Study Objectives
 
