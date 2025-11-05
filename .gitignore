@@ -7,3 +7,4 @@ model
 report/Figures
 *.Rproj
 *.pdf
+/.luarc.json
