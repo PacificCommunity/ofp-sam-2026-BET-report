@@ -46,6 +46,19 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         run: docker pull ghcr.io/pacificcommunity/bet-2026:v1.2
 
+      # Setup Quarto for rendering Pre-Paw document
+      - name: Set up Quarto
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.4.554
+
+      # Render Pre-Paw Quarto document
+      - name: Render Pre-Paw Quarto document
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
+        run: |
+          quarto render Pre-Paw/prepaw_bet2026.qmd --to html
+
       # Run pipeline
       - name: Run BET-2026 pipeline
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
@@ -70,8 +83,9 @@ jobs:
           cp report/bet-2026.pdf public/ || true
           cp plot/plots_sens.html public/ || true
           cp plot/plots_grid.html public/ || true
+          cp Pre-Paw/prepaw_bet2026.html public/ || true
 
-      # Deploy to GitHub Pages without creating Deployment records
+      # Deploy to GitHub Pages via gh CLI
       - name: Deploy to GitHub Pages via gh CLI
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
         env:
@@ -117,10 +131,12 @@ jobs:
             ${{ github.event.inputs.version_note }}
 
             **View online:**  
+            - [Pre-Paw Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/prepaw_bet2026.html)
             - [Sensitivity Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_sens.html)  
             - [Grid Plots](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/plots_grid.html)  
             - [PDF Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/bet-2026.pdf)
           files: |
+            Pre-Paw/prepaw_bet2026.html
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
@@ -166,3 +182,4 @@ jobs:
                 https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/$ID
             fi
           done
+
