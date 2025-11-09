@@ -1,5 +1,6 @@
-// Ideas from Slidecraft 101: Colors and Fonts
-// https://emilhvitfeldt.com/post/slidecraft-colors-fonts/
+// SPC Theme for Bigeye Tuna Assessment Presentation
+// Based on NOAA Slidecraft 101: Colors and Fonts
+
 /*-- scss:defaults --*/
 // NOAA colors from 2023 Fisheries Palette
 // Check contrast: https://colourcontrast.cc/
@@ -53,9 +54,9 @@ $slide-height: 100vh;
 @mixin wide-sidebar {
   @include full-screen-background;
   width: 35vw !important;
-  background-image: url('https://raw.githubusercontent.com/N-DucharmeBarth-NOAA/2025-swpo-mls-meeting/refs/heads/main/assets/static/spc-title-sidebar.png');
+  background-image: url('../static/spc-title-sidebar.png');
   background-size: cover;
-  background-position: center;
+  background-position: left center;
   background-repeat: no-repeat;
 }
 
@@ -63,23 +64,94 @@ $slide-height: 100vh;
 @mixin narrow-sidebar {
   @include full-screen-background;
   width: 5vw !important;
-  background-image: url('https://raw.githubusercontent.com/N-DucharmeBarth-NOAA/2025-swpo-mls-meeting/refs/heads/main/assets/static/spc-slide-sidebar.png');
+  background-image: url('../static/spc-slide-sidebar.png');
   background-size: cover;
-  background-position: center;
+  background-position: left center;
   background-repeat: no-repeat;
 }
 
 // Content layout classes - independent of background styling
 .content-with-wide-sidebar {
-  margin-left: 40% !important;
-  width: 60% !important;
-  padding-top: 0 !important;
+  margin-left: 38% !important;
+  width: 58% !important;
+  padding-top: 5% !important;
+  padding-right: 2% !important;
+  max-height: 85vh !important;
+  overflow-y: auto !important;
 }
 
 .content-with-narrow-sidebar {
-  margin-left: 2% !important;
-  width: 100% !important;
-  padding-top: 0 !important;
+  margin-left: 7% !important;
+  width: 91% !important;
+  padding-top: 2% !important;
+  padding-right: 2% !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+// Ensure absolute positioned content is responsive
+.reveal .slides section .absolute {
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
+  max-height: 100vh !important;
+}
+
+// Prevent content from going off screen
+.reveal .slides {
+  overflow: hidden !important;
+}
+
+.reveal .slides section {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+// Auto-scale content for better fit
+.reveal .slides section > * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+// Tables should scroll if too wide
+.reveal table {
+  display: block !important;
+  overflow-x: auto !important;
+  max-width: 100% !important;
+  font-size: 0.85em !important;
+}
+
+// Lists should be more compact
+.reveal ul, .reveal ol {
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
+}
+
+.reveal li {
+  margin-bottom: 0.3em !important;
+}
+
+// Headings should be more compact
+.reveal h3 {
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
+  font-size: 1.3em !important;
+}
+
+.reveal h4 {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+  font-size: 1.1em !important;
+}
+
+// Columns should handle overflow
+.reveal .columns {
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+}
+
+.reveal .column {
+  overflow-y: auto !important;
+  max-height: 85vh !important;
 }
 
 // Original styles from your file
@@ -199,24 +271,29 @@ $colors: (
   }
 }
 
-// Apply background styling
-.wide-sidebar-bg {
-  position: relative; // For reference positioning only
-  
-  &::before {
-    content: "";
-    @include wide-sidebar;
-  }
+// Apply background styling - using body background instead of pseudo-elements
+body.wide-sidebar-bg {
+  background-image: url('../static/spc-title-sidebar.png');
+  background-size: 35vw 100vh;
+  background-position: left center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
+body.narrow-sidebar-bg {
+  background-image: url('../static/spc-slide-sidebar.png');
+  background-size: 5vw 100vh;
+  background-position: left center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+// Remove old pseudo-element approach
+.wide-sidebar-bg,
 .narrow-sidebar-bg {
-  position: relative; // For reference positioning only
-  
   &::before {
-    content: "";
-    @include narrow-sidebar;
+    display: none !important;
   }
-  
 }
 
 .horizontal-line {
@@ -228,4 +305,39 @@ $colors: (
   background-color: #0085CA;
   z-index: 10; /* Higher z-index to ensure visibility */
   pointer-events: none; // Let clicks pass through
+}
+
+// Responsive adjustments
+@media (max-width: 1400px) {
+  .content-with-wide-sidebar {
+    margin-left: 36% !important;
+    width: 62% !important;
+  }
+  
+  .content-with-narrow-sidebar {
+    margin-left: 6% !important;
+    width: 92% !important;
+  }
+}
+
+@media (max-width: 1000px) {
+  .content-with-wide-sidebar {
+    margin-left: 35% !important;
+    width: 63% !important;
+    font-size: 0.9em;
+  }
+  
+  .content-with-narrow-sidebar {
+    margin-left: 5% !important;
+    width: 93% !important;
+    font-size: 0.9em;
+  }
+}
+
+@media (max-height: 700px) {
+  .content-with-wide-sidebar,
+  .content-with-narrow-sidebar {
+    font-size: 0.85em;
+    padding-top: 1% !important;
+  }
 }
