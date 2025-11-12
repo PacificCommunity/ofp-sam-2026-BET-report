@@ -103,11 +103,32 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Fetch and checkout gh-pages
+          git fetch origin gh-pages || true
           git checkout -B gh-pages
-          git rm -rf .
+          
+          # Remove all files completely (including hidden files except .git)
+          git rm -rf . || true
+          find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} + 2>/dev/null || true
+          
+          # Copy new files
           cp -r public/* .
+          
+          # Add cache-busting meta tags to HTML files
+          for file in *.html; do
+            if [ -f "$file" ]; then
+              # Check if meta tags already exist to avoid duplication
+              if ! grep -q "Cache-Control" "$file"; then
+                sed -i '/<head>/a\  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n  <meta http-equiv="Pragma" content="no-cache">\n  <meta http-equiv="Expires" content="0">' "$file"
+              fi
+            fi
+          done
+          
+          # Commit with unique timestamp to force update
           git add .
-          git commit -m "Update GitHub Pages content"
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          git commit -m "Update GitHub Pages content - $TIMESTAMP" --allow-empty
           git push -f origin gh-pages
 
       # Create unique version tag
@@ -128,6 +149,25 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
+      # Delete old release assets if release exists
+      - name: Delete old release assets
+        if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          
+          # Check if release exists
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Release $TAG exists, deleting old assets..."
+            gh release delete-asset "$TAG" prepaw_bet2026.html -y || true
+            gh release delete-asset "$TAG" bet-2026.pdf -y || true
+            gh release delete-asset "$TAG" plots_sens.html -y || true
+            gh release delete-asset "$TAG" plots_grid.html -y || true
+          else
+            echo "Release $TAG does not exist yet, skipping asset deletion"
+          fi
+
       # Create GitHub Release
       - name: Create GitHub Release
         if: ${{ github.event_name == 'workflow_dispatch' || env.RUN_PIPELINE == 'true' }}
@@ -137,7 +177,8 @@ jobs:
           name: BET-2026 Report ${{ steps.tag.outputs.tag }}
           body: |
             ## BET-2026 Automated Report
-            **Mode:** ${{ github.event.inputs.run_mode }}
+            **Mode:** ${{ github.event.inputs.run_mode || 'full' }}
+            **Generated:** ${{ github.event.head_commit.timestamp || github.run_id }}
             ${{ github.event.inputs.version_note }}
 
             **View online:**  
@@ -150,6 +191,7 @@ jobs:
             report/bet-2026.pdf
             plot/plots_sens.html
             plot/plots_grid.html
+          fail_on_unmatched_files: false
 
       # Cleanup old deployments (keep last 30 min)
       - name: Cleanup old deployments (keep last 30 min)
@@ -192,4 +234,5 @@ jobs:
                 https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/$ID
             fi
           done
+
 
