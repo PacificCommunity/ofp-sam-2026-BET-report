@@ -70,6 +70,7 @@ bibliography: references.bib
 
 :::
 
+
 ## Why This Pre-PAW? {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
 ::: {style="margin-left: 1.5%; margin-right: 1.5%; margin-top: 1%; font-size: 0.6em; line-height: 1.3;"}
@@ -99,11 +100,13 @@ bibliography: references.bib
 :::
 :::
 
+
 ## Part 1: 2023 Assessment Review {data-background-color="#003087"}
 
 ::: {style="text-align: center; padding-top: 35%; color: white;"}
 ### What We Learned
 :::
+
 
 ## 2023 Assessment: Stock Status {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -117,7 +120,7 @@ bibliography: references.bib
   - Above limit reference point
   
 - **F/FMSY = 0.59** (0.46-0.74)
-  - Below target
+  - Below limit
   
 - **Status**: 
   - NOT overfished
@@ -135,6 +138,7 @@ bibliography: references.bib
 
 
 :::
+
 
 ## 2023 Assessment: Major Changes and Improvements {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -181,6 +185,7 @@ bibliography: references.bib
 
 :::
 
+
 ## 2023 Assessment: Remaining Challenges {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
 ::: {style="margin-left: 1.5%; margin-right: 1.5%; font-size: 0.6em; line-height: 1.3;"}
@@ -209,6 +214,7 @@ bibliography: references.bib
 :::
 
 :::
+
 
 ## SC19's 14 Research Recommendations {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -249,11 +255,13 @@ bibliography: references.bib
 
 :::
 
+
 ## Part 2: Issues Identified {data-background-color="#0085CA"}
 
 ::: {style="text-align: center; padding-top: 35%; color: white;"}
-### 7 Key Problems Identified
+### 6 Key Problems Identified
 :::
+
 
 ## Issue #1: Age Data Quality {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -295,6 +303,7 @@ bibliography: references.bib
 
 :::
 
+
 ## Issue #2: Spatial Structure {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
 ::: {style="margin-left: 1.5%; margin-right: 1.5%; font-size: 0.6em; line-height: 1.3;"}
@@ -335,6 +344,7 @@ bibliography: references.bib
 
 :::
 
+
 ## Issue #3: Tag Mixing Assumptions {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
 ::: {style="margin-left: 1.5%; margin-right: 1.5%; font-size: 0.6em; line-height: 1.3;"}
@@ -362,6 +372,7 @@ bibliography: references.bib
 :::
 
 :::
+
 
 ## Issue #4: Size Composition Weighting {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -392,6 +403,7 @@ bibliography: references.bib
 :::
 
 :::
+
 
 ## Issue #5: Unfished Biomass Trends {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -426,6 +438,7 @@ Investigate model specifications causing this trend
 :::
 
 :::
+
 
 ## Issue #6: Model Convergence {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -472,11 +485,13 @@ Investigate model specifications causing this trend
 
 :::
 
+
 ## Part 3: Open Science & Reproducibility {data-background-color="#323C46"}
 
 ::: {style="text-align: center; padding-top: 35%; color: white;"}
 ### Where We Keep Transparency
 :::
+
 
 ## Workflow for Open and Reproducible Science{data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -530,6 +545,7 @@ Investigate model specifications causing this trend
 
 :::
 
+
 ## References {data-background-image="static/spc-slide_sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
 ::: {style="margin-left: 1.5%; margin-right: 1.5%; font-size: 0.72em; line-height: 1.35; max-height: 85vh; overflow-y: auto;"}
@@ -538,6 +554,7 @@ Investigate model specifications causing this trend
 :::
 
 :::
+
 
 ## Thank You {data-background-image="static/spc-title-sidebar.png" data-background-size="5% 100%" data-background-position="right" data-background-color="#003087"}
 
@@ -560,6 +577,7 @@ Oceanic Fisheries Programme
 
 **Contact**: kyuhank@spc.int
 :::
+
 
 # Backup Slides {data-background-color="#A5AAAF"}
 
@@ -610,6 +628,7 @@ Oceanic Fisheries Programme
 
 :::
 
+
 ## 2023 Catch Trends {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
 ::: {style="margin-left: 1.5%; margin-right: 1.5%; font-size: 0.6em; line-height: 1.3;"}
@@ -641,6 +660,7 @@ Oceanic Fisheries Programme
 :::
 
 :::
+
 
 ## Catch by Region {data-background-image="static/spc-slide-sidebar.png" data-background-size="5% 100%" data-background-position="left"}
 
@@ -676,3 +696,4 @@ Oceanic Fisheries Programme
 :::
 
 :::
+
