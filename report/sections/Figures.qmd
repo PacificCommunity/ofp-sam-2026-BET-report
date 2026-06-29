@@ -1,6 +1,7 @@
 
-![Depltion plots... ](Figures/sens/Dep-1.png){#fig-spatial-distribution fig-align=center width=100% fig-pos="h"}
+![Observed and fitted total catch across sensitivity models. The black line shows observed catch aggregated across fisheries and seasons; coloured lines show fitted catch for each model scenario.](Figures/sens/Catch-1.png){#fig-total-catch fig-align=center width=100% fig-pos="h"}
+
+![Depletion and recruitment trajectories across sensitivity models.](Figures/sens/Dep-1.png){#fig-spatial-distribution fig-align=center width=100% fig-pos="h"}
 
 <!-- \clearpage -->
-
 

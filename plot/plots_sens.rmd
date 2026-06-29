@@ -58,6 +58,11 @@ RepOut_list        <- map(results, "RepOut")
 ProfLikOut_list    <- map(results, "LikOut")
 ProfLikOutRaw_list <- map(results, "LikRawOut")
 model_names <- names(ParOut_list)
+scenario_levels <- sort(sub("^skj_", "", model_names))
+scenario_colors <- setNames(
+  viridis(length(scenario_levels), option = "D", direction = 1),
+  scenario_levels
+)
 dir <-map(results, "parent_dir")
 info <-map(results, "info")
 ave_bio <-map(results, "avg_bio")
@@ -160,6 +165,70 @@ params_df <- params_df %>%
 # Display parameter table
 kable(params_df, caption = "Basic model info") %>%
   kable_styling(full_width = FALSE)
+
+```
+
+## Total catch
+```{r Catch, echo=FALSE, message=FALSE, fig.dim=c(9,5)}
+
+CatchFits <- purrr::imap_dfr(RepOut_list, function(repout, scenario_name) {
+  obs <- as.data.frame(catch_obs(repout)) %>%
+    mutate(Type = "Observed")
+  fit <- as.data.frame(catch_pred(repout)) %>%
+    mutate(Type = "Fitted")
+
+  bind_rows(obs, fit) %>%
+    mutate(
+      Scenario = sub("^skj_", "", scenario_name),
+      Year = as.numeric(year),
+      Catch = as.numeric(data)
+    ) %>%
+    filter(!is.na(Catch), Year >= minYear, Year <= maxYear) %>%
+    group_by(Scenario, Type, Year) %>%
+    summarise(Catch = sum(Catch, na.rm = TRUE), .groups = "drop")
+})
+
+ObsCatch <- CatchFits %>%
+  filter(Type == "Observed") %>%
+  group_by(Year) %>%
+  summarise(Catch = mean(Catch, na.rm = TRUE), .groups = "drop")
+
+FitCatch <- CatchFits %>%
+  filter(Type == "Fitted") %>%
+  mutate(Scenario = factor(Scenario, levels = scenario_levels))
+
+ggplot() +
+  geom_line(
+    data = ObsCatch,
+    aes(x = Year, y = Catch / 1000),
+    linewidth = 0.4,
+    colour = "grey45",
+    alpha = 0.6
+  ) +
+  geom_line(
+    data = FitCatch,
+    aes(x = Year, y = Catch / 1000, colour = Scenario),
+    linewidth = linewidth,
+    alpha = alpha
+  ) +
+  geom_point(
+    data = ObsCatch,
+    aes(x = Year, y = Catch / 1000),
+    size = 1.1,
+    alpha = 0.65,
+    colour = "black"
+  ) +
+  scale_color_manual(values = scenario_colors) +
+  labs(
+    x = "Year",
+    y = bquote("Total catch (" * 10^3 * " model units)"),
+    colour = "Scenario"
+  ) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    legend.key = element_blank()
+  )
 
 ```
 
@@ -609,4 +678,3 @@ Likes_change %>%
 
 
 <!-- ``` -->
-
